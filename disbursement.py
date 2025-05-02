@@ -135,7 +135,7 @@ async def ocr_and_match(
         ext = doc.filename.split('.')[-1].lower()
 
         if ext == 'pdf':
-            images = convert_from_bytes(file_bytes)
+            images = convert_from_bytes(file_bytes, dpi=150, fmt='jpeg', thread_count=1)
             texts = [pytesseract.image_to_string(img) for img in images]
             text = "\n".join(texts)
             confidence = 85.0
