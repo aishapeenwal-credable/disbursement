@@ -16,7 +16,6 @@ from dotenv import load_dotenv
 from flask_cors import CORS
 from fastapi.middleware.cors import CORSMiddleware
 
-app = Flask(__name__)
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
