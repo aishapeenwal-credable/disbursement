@@ -5,6 +5,7 @@ import requests
 import pandas as pd
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pdf2image import convert_from_bytes
 import pytesseract
 import tempfile
@@ -12,9 +13,14 @@ from typing import List, Dict
 from pydantic import BaseModel
 import json
 import re
-from dotenv import load_dotenv
-from flask_cors import CORS
-from fastapi.middleware.cors import CORSMiddleware
+
+# Initialize FastAPI
+app = FastAPI()
+
+# Add health check route
+@app.get("/")
+def health():
+    return {"status": "ok"}
 
 # Enable CORS
 app.add_middleware(
@@ -28,10 +34,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-load_dotenv()
-
-# Initialize FastAPI
-app = FastAPI()
 
 # Initialize EasyOCR (English language)
 reader = easyocr.Reader(['en'], gpu=False)
@@ -43,9 +45,9 @@ TOGETHER_URL = "https://api.together.xyz/v1/chat/completions"
 
 # Static fields for extraction
 FIELDS = [
-    "Buyer PAN", "Buyer Name", "From Date", "To Date", "Invoice ID",
-    "Invoice file name", "Invoice raise date", "Invoice validity", "Invoice approved date", "Invoice Due Date",
-    "Taxable Amount", "GST (amount)", "Total Invoice Amount"
+    "PAN No.", "Client Name", "From", "To", "Invoice ID",
+    "Invoice file name", "Invoice raise date", "Invoice validity",
+    "Taxable Amount", "GST", "Total Invoice Amount"
 ]
 
 # Helper: LLM extraction with Together.ai
