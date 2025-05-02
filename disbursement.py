@@ -45,9 +45,9 @@ TOGETHER_URL = "https://api.together.xyz/v1/chat/completions"
 
 # Static fields for extraction
 FIELDS = [
-    "PAN No.", "Client Name", "From", "To", "Invoice ID",
-    "Invoice file name", "Invoice raise date", "Invoice validity",
-    "Taxable Amount", "GST", "Total Invoice Amount"
+    "Buyer PAN", "Buyer Name", "From Date (YYYY-MM-DD)", "To (YYYY-MM-DD)", "Invoice ID",
+    "Invoice file name", "Invoice raise date (YYYY-MM-DD)", "Invoice validity",
+    "Taxable Amount", "GST (amount)", "Total Invoice Amount"
 ]
 
 # Helper: LLM extraction with Together.ai
@@ -60,8 +60,8 @@ You are an AI that extracts invoice fields. Extract ONLY the following fields fr
 Example format:
 
 {{
-    "PAN No.": "ABCDE1234F",
-    "Client Name": "ANJALI SCRAP TRADERS",
+    "Buyer PAN": "ABCDE1234F",
+    "Buyer Name": "ANJALI SCRAP TRADERS",
     ...
 }}
 
@@ -92,17 +92,18 @@ Respond ONLY with valid JSON. Do not explain anything. If a value is not found, 
     print("Raw LLM output:\n", extracted_text)
 
     try:
-        json_block = re.search(r'\{.*?\}', extracted_text, re.DOTALL).group(0)
+        json_block = re.search(r'\{.*\}', extracted_text, re.DOTALL).group(0)
         return json.loads(json_block)
-    except Exception:
+    except Exception as e:
+        print("⚠️ JSON parsing failed. Raw text:\n", extracted_text)
         raise HTTPException(status_code=500, detail="Failed parsing LLM response")
 
 # Normalize numeric strings for comparison
 def normalize_number(value: str) -> str:
     try:
-        return str(float(value.replace(",", "")))
+        return str(float(str(value).replace(",", "")))
     except:
-        return value
+        return str(value)
 
 # OCR function using EasyOCR
 def easyocr_read_image(image_path):
@@ -124,7 +125,7 @@ async def ocr_and_match(
     documents: List[UploadFile] = File(...)
 ):
     df = pd.read_excel(excel_file.file)
-    df = df.fillna("").astype(str)  # Normalize types
+    df = df.fillna("")
     excel_data = df.set_index("Invoice ID").to_dict(orient="index")
 
     results = []
@@ -152,10 +153,13 @@ async def ocr_and_match(
 
         matched_fields = {}
         for field in FIELDS:
-            excel_val = str(excel_row.get(field, "Not in Excel")).strip()
-            ocr_val = str(extracted_fields.get(field, "Not Extracted")).strip()
+            excel_val = excel_row.get(field, "Not in Excel")
+            ocr_val = extracted_fields.get(field, "Not Extracted")
 
-            # Normalize numbers if both values look like amounts
+            # Normalize all to strings
+            excel_val = "" if pd.isna(excel_val) else str(excel_val).strip()
+            ocr_val = "" if isinstance(ocr_val, dict) else str(ocr_val).strip()
+
             if any(x in field.lower() for x in ["amount", "gst", "total"]):
                 norm_excel = normalize_number(excel_val)
                 norm_ocr = normalize_number(ocr_val)
