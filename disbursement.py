@@ -63,6 +63,7 @@ Fields: {', '.join(FIELDS)}
 Example:
 [[JSON]]
 {{
+    "Invoice ID":"2025-26/02",
     "Buyer PAN": "ABCDE1234F",
     "Buyer Name": "ANJALI SCRAP TRADERS",
     ...
