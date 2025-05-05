@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: invoice-ocr-api
+    env: python
+    region: oregon  # or change to frankfurt, singapore, etc.
+    buildCommand: ./build.sh
+    startCommand: uvicorn disbursement:app --host 0.0.0.0 --port $PORT
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: TOGETHER_API_KEY
+        sync: false  # set this from Render dashboard manually
