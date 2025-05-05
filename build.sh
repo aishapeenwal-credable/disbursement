@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 
-# Update and install Tesseract OCR
-apt-get update && apt-get install -y tesseract-ocr
+set -o errexit
+set -o nounset
 
-# Install Python packages
+# Install Tesseract OCR
+apt-get update
+apt-get install -y tesseract-ocr libglib2.0-0 libsm6 libxext6 libxrender1
+
+# Install Python deps
+pip install --upgrade pip
 pip install -r requirements.txt
