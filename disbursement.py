@@ -13,6 +13,11 @@ from typing import List, Dict
 from pydantic import BaseModel
 import json
 import re
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Initialize FastAPI
 app = FastAPI()
@@ -40,7 +45,7 @@ reader = easyocr.Reader(['en'], gpu=False)
 
 # Together.ai API configuration
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
-LLM_MODEL = "mistralai/Mixtral-8x7B-Instruct-v0.1"
+LLM_MODEL = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
 TOGETHER_URL = "https://api.together.xyz/v1/chat/completions"
 
 # Static fields for extraction
@@ -53,29 +58,32 @@ FIELDS = [
 # Helper: LLM extraction with Together.ai
 def llm_extract(text: str) -> Dict[str, str]:
     prompt = f"""
-You are an AI that extracts invoice fields. Extract ONLY the following fields from the provided invoice text and return a raw JSON dictionary — no comments, no formatting, no markdown:
+You are an AI that extracts invoice fields. Extract ONLY the following fields from the provided invoice text and return a raw JSON dictionary — no comments, no formatting, no markdown.
+Wrap your JSON response between [[JSON]] and [[/JSON]]
 
-{', '.join(FIELDS)}
+Fields: {', '.join(FIELDS)}
 
-Example format:
-
+Example:
+[[JSON]]
 {{
     "Buyer PAN": "ABCDE1234F",
     "Buyer Name": "ANJALI SCRAP TRADERS",
     ...
 }}
+[[/JSON]]
 
 Invoice Text:
 {text}
 
-Respond ONLY with valid JSON. Do not explain anything. If a value is not found, set it as "Not Extracted".
+Respond ONLY with valid JSON enclosed by markers.
+If a value is not found, set it as "Not Extracted".
 """
 
     payload = {
         "model": LLM_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.0,
-        "max_tokens": 1024
+        "max_tokens": 2000
     }
 
     headers = {
@@ -86,17 +94,27 @@ Respond ONLY with valid JSON. Do not explain anything. If a value is not found, 
     response = requests.post(TOGETHER_URL, json=payload, headers=headers, verify=False)
 
     if response.status_code != 200:
+        logger.error(f"LLM extraction failed: {response.text}")
         raise HTTPException(status_code=500, detail="LLM extraction failed")
 
     extracted_text = response.json()['choices'][0]['message']['content'].strip()
-    print("Raw LLM output:\n", extracted_text)
+    logger.info("Raw LLM output:\n%s", extracted_text)
+
+    match = re.search(r'\[\[JSON\]\](.*?)\[\[/JSON\]\]', extracted_text, re.DOTALL)
+    if not match:
+        logger.warning("⚠️ No [[JSON]] block found in LLM response")
+        raise HTTPException(status_code=500, detail="Invalid JSON block")
 
     try:
-        json_block = re.search(r'\{.*\}', extracted_text, re.DOTALL).group(0)
-        return json.loads(json_block)
-    except Exception as e:
-        print("⚠️ JSON parsing failed. Raw text:\n", extracted_text)
-        raise HTTPException(status_code=500, detail="Failed parsing LLM response")
+        json_block = json.loads(match.group(1))
+    except json.JSONDecodeError as e:
+        logger.error("⚠️ JSON decode failed: %s", e)
+        raise HTTPException(status_code=500, detail="Malformed JSON")
+
+    parsed = {}
+    for key in FIELDS:
+        parsed[key] = json_block.get(key, "Not Extracted")
+    return parsed
 
 # Normalize numeric strings for comparison
 def normalize_number(value: str) -> str:
@@ -135,7 +153,7 @@ async def ocr_and_match(
         ext = doc.filename.split('.')[-1].lower()
 
         if ext == 'pdf':
-            images = convert_from_bytes(file_bytes, dpi=150, fmt='jpeg', thread_count=1)
+            images = convert_from_bytes(file_bytes, dpi=150, fmt='jpeg', thread_count=1, first_page=1, last_page=2)
             texts = [pytesseract.image_to_string(img) for img in images]
             text = "\n".join(texts)
             confidence = 85.0
@@ -156,7 +174,6 @@ async def ocr_and_match(
             excel_val = excel_row.get(field, "Not in Excel")
             ocr_val = extracted_fields.get(field, "Not Extracted")
 
-            # Normalize all to strings
             excel_val = "" if pd.isna(excel_val) else str(excel_val).strip()
             ocr_val = "" if isinstance(ocr_val, dict) else str(ocr_val).strip()
 
