@@ -32,7 +32,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://id-preview--3474ee39-2650-4791-ae98-e4e2992f0966.lovable.app",
+        "https://preview--docu-query-flow.lovable.app",
         "https://web.postman.co"
     ],
     allow_credentials=True,
