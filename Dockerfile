@@ -1,24 +1,24 @@
 FROM python:3.11-slim
 
-# Install tesseract and other dependencies
-RUN apt-get update && apt-get install -y \
-    tesseract-ocr \
-    libgl1 \
-    libglib2.0-0 \
-    poppler-utils \
-    && apt-get clean
+# Install tesseract and dependencies
+RUN apt-get update && \
+    apt-get install -y tesseract-ocr libtesseract-dev poppler-utils gcc && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
 
-# Copy all code
-COPY . /app
+# Copy requirements first
+COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose the correct port
+# Copy app code
+COPY . .
+
+# Expose port
 EXPOSE 10000
 
-# Start the FastAPI server
+# Start the app
 CMD ["uvicorn", "disbursement:app", "--host", "0.0.0.0", "--port", "10000"]
