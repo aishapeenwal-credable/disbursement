@@ -1,27 +1,28 @@
 FROM python:3.11-slim
 
-# Install OS dependencies
+# Install system dependencies including tesseract
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
+    poppler-utils \
+    libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender1 \
-    poppler-utils \
     && apt-get clean
 
 # Set workdir
 WORKDIR /app
 
-# Copy files
+# Copy project files
 COPY . /app
 
-# Install Python dependencies
+# Install Python packages
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
-# Expose the port Render provides
+# Expose the correct port
 EXPOSE 10000
 
-# Run the app
+# Run the FastAPI app
 CMD ["uvicorn", "disbursement:app", "--host", "0.0.0.0", "--port", "10000"]
