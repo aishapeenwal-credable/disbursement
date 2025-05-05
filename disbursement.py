@@ -1,6 +1,5 @@
 import os
 import uuid
-import easyocr
 import requests
 import pandas as pd
 from fastapi import FastAPI, File, UploadFile, HTTPException
@@ -14,6 +13,7 @@ from pydantic import BaseModel
 import json
 import re
 import logging
+from PIL import Image
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -39,9 +39,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Initialize EasyOCR (English language)
-reader = easyocr.Reader(['en'], gpu=False)
 
 # Together.ai API configuration
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
@@ -73,7 +70,7 @@ Example:
 [[/JSON]]
 
 Invoice Text:
-{text}
+{text[:2000]}
 
 Respond ONLY with valid JSON enclosed by markers.
 If a value is not found, set it as "Not Extracted".
@@ -83,7 +80,7 @@ If a value is not found, set it as "Not Extracted".
         "model": LLM_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.0,
-        "max_tokens": 2000
+        "max_tokens": 3072
     }
 
     headers = {
@@ -97,18 +94,21 @@ If a value is not found, set it as "Not Extracted".
         logger.error(f"LLM extraction failed: {response.text}")
         raise HTTPException(status_code=500, detail="LLM extraction failed")
 
-    extracted_text = response.json()['choices'][0]['message']['content'].strip()
+    response_json = response.json()
+    extracted_text = response_json['choices'][0]['message']['content'].strip()
+    usage = response_json.get("usage", {})
+    logger.info("Token usage: prompt=%s, completion=%s, total=%s", usage.get("prompt_tokens"), usage.get("completion_tokens"), usage.get("total_tokens"))
     logger.info("Raw LLM output:\n%s", extracted_text)
 
     match = re.search(r'\[\[JSON\]\](.*?)\[\[/JSON\]\]', extracted_text, re.DOTALL)
     if not match:
-        logger.warning("⚠️ No [[JSON]] block found in LLM response")
+        logger.warning("\u26a0\ufe0f No [[JSON]] block found in LLM response")
         raise HTTPException(status_code=500, detail="Invalid JSON block")
 
     try:
         json_block = json.loads(match.group(1))
     except json.JSONDecodeError as e:
-        logger.error("⚠️ JSON decode failed: %s", e)
+        logger.error("\u26a0\ufe0f JSON decode failed: %s", e)
         raise HTTPException(status_code=500, detail="Malformed JSON")
 
     parsed = {}
@@ -123,11 +123,11 @@ def normalize_number(value: str) -> str:
     except:
         return str(value)
 
-# OCR function using EasyOCR
-def easyocr_read_image(image_path):
-    results = reader.readtext(image_path, detail=1)
-    text = " ".join([res[1] for res in results])
-    confidence = sum(res[2] for res in results) / len(results) if results else 0.0
+# OCR fallback using pytesseract only
+def pytesseract_read_image(image_path):
+    image = Image.open(image_path)
+    text = pytesseract.image_to_string(image)
+    confidence = 85.0  # fallback confidence score
     return text, confidence
 
 # Response schema
@@ -162,7 +162,7 @@ async def ocr_and_match(
                 tmp.write(file_bytes)
                 tmp_path = tmp.name
 
-            text, confidence = easyocr_read_image(tmp_path)
+            text, confidence = pytesseract_read_image(tmp_path)
             os.unlink(tmp_path)
 
         extracted_fields = llm_extract(text)
