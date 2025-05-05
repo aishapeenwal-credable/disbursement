@@ -1,0 +1,27 @@
+FROM python:3.11-slim
+
+# Install OS dependencies
+RUN apt-get update && apt-get install -y \
+    tesseract-ocr \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    poppler-utils \
+    && apt-get clean
+
+# Set workdir
+WORKDIR /app
+
+# Copy files
+COPY . /app
+
+# Install Python dependencies
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
+
+# Expose the port Render provides
+EXPOSE 10000
+
+# Run the app
+CMD ["uvicorn", "disbursement:app", "--host", "0.0.0.0", "--port", "10000"]
