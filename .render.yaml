@@ -1,8 +1,10 @@
 services:
   - type: web
-    name: invoice-ocr-api
+    name: disbursement
     env: docker
     plan: free
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
     envVars:
       - key: TOGETHER_API_KEY
         sync: false
