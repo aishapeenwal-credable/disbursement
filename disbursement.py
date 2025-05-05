@@ -7,13 +7,13 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pdf2image import convert_from_bytes
 import pytesseract
+from PIL import Image
 import tempfile
 from typing import List, Dict
 from pydantic import BaseModel
 import json
 import re
 import logging
-from PIL import Image
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -102,13 +102,13 @@ If a value is not found, set it as "Not Extracted".
 
     match = re.search(r'\[\[JSON\]\](.*?)\[\[/JSON\]\]', extracted_text, re.DOTALL)
     if not match:
-        logger.warning("\u26a0\ufe0f No [[JSON]] block found in LLM response")
+        logger.warning("⚠️ No [[JSON]] block found in LLM response")
         raise HTTPException(status_code=500, detail="Invalid JSON block")
 
     try:
         json_block = json.loads(match.group(1))
     except json.JSONDecodeError as e:
-        logger.error("\u26a0\ufe0f JSON decode failed: %s", e)
+        logger.error("⚠️ JSON decode failed: %s", e)
         raise HTTPException(status_code=500, detail="Malformed JSON")
 
     parsed = {}
@@ -123,12 +123,9 @@ def normalize_number(value: str) -> str:
     except:
         return str(value)
 
-# OCR fallback using pytesseract only
-def pytesseract_read_image(image_path):
-    image = Image.open(image_path)
-    text = pytesseract.image_to_string(image)
-    confidence = 85.0  # fallback confidence score
-    return text, confidence
+# OCR using pytesseract
+def tesseract_ocr(image: Image.Image) -> str:
+    return pytesseract.image_to_string(image)
 
 # Response schema
 class OCRMatch(BaseModel):
@@ -154,15 +151,16 @@ async def ocr_and_match(
 
         if ext == 'pdf':
             images = convert_from_bytes(file_bytes, dpi=150, fmt='jpeg', thread_count=1, first_page=1, last_page=2)
-            texts = [pytesseract.image_to_string(img) for img in images]
+            texts = [tesseract_ocr(img) for img in images]
             text = "\n".join(texts)
             confidence = 85.0
         else:
             with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp:
                 tmp.write(file_bytes)
                 tmp_path = tmp.name
-
-            text, confidence = pytesseract_read_image(tmp_path)
+            image = Image.open(tmp_path)
+            text = tesseract_ocr(image)
+            confidence = 85.0
             os.unlink(tmp_path)
 
         extracted_fields = llm_extract(text)
