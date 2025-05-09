@@ -35,7 +35,8 @@ app.add_middleware(
         "https://preview--docu-query-flow.lovable.app",
         "https://web.postman.co",
         "https://preview--disbursement-match-wizard.lovable.app",
-        "https://preview--disbursement-request.lovable.app"
+        "https://preview--disbursement-request.lovable.app",
+        "https://disbursement-request.lovable.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
