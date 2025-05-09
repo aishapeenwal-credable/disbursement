@@ -47,9 +47,7 @@ TOGETHER_URL = "https://api.together.xyz/v1/chat/completions"
 
 # Static fields for extraction
 FIELDS = [
-    "Buyer PAN", "Buyer Name", "From Date (YYYY-MM-DD)", "To (YYYY-MM-DD)", "Invoice ID",
-    "Invoice file name", "Invoice raise date (YYYY-MM-DD)", "Invoice validity",
-    "Taxable Amount", "GST (amount)", "Total Invoice Amount"
+    "Buyer PAN", "Buyer Name", "Invoice ID", "Invoice date (YYYY-MM-DD)", "Taxable Amount", "GST (amount)", "Total Invoice Amount"
 ]
 
 # Helper: LLM extraction with Together.ai
