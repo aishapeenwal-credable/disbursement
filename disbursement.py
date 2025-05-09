@@ -33,7 +33,9 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "https://preview--docu-query-flow.lovable.app",
-        "https://web.postman.co"
+        "https://web.postman.co",
+        "https://preview--disbursement-match-wizard.lovable.app",
+        "https://preview--disbursement-request.lovable.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
