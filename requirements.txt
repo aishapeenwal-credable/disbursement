@@ -1,9 +1,12 @@
 fastapi
 uvicorn
-pytesseract
-pillow
-pdf2image
 pandas
 openpyxl
+xlrd
+chardet
 requests
+pytesseract
+pdf2image
+pillow
 python-multipart
+pydantic
