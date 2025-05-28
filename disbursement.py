@@ -39,7 +39,9 @@ app.add_middleware(
         "https://disbursement-request.lovable.app",
         "https://id-preview--c5a7e71e-1325-42ec-bb47-cffe6e600178.lovable.app",
         "https://c5a7e71e-1325-42ec-bb47-cffe6e600178.lovableproject.com",
-        "https://c5a7e71e-1325-42ec-bb47-cffe6e600178.lovable.app"
+        "https://c5a7e71e-1325-42ec-bb47-cffe6e600178.lovable.app",
+        "https://id-preview--c5a7e71e-1325-42ec-bb47-cffe6e600178.lovable.app",
+        "https://disbursement-request-check.lovable.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
