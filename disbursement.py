@@ -46,6 +46,10 @@ app.add_middleware(
 def health():
     return {"status": "ok"}
 
+@app.options("/ocr-and-match/")
+async def options_handler():
+    return JSONResponse(status_code=200, content={"message": "CORS preflight OK"})
+
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
 TOGETHER_URL = "https://api.together.xyz/v1/chat/completions"
 LLM_MODEL = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
